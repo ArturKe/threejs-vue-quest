@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1024" viewBox="0 0 2048 1024">
+  <defs>
+    <linearGradient id="leftBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d3b66" />
+      <stop offset="100%" stop-color="#1d6fa5" />
+    </linearGradient>
+    <linearGradient id="rightBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b2d42" />
+      <stop offset="100%" stop-color="#4d5061" />
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" fill="url(#leftBg)" />
+  <rect x="1024" y="0" width="1024" height="1024" fill="url(#rightBg)" />
+
+  <circle cx="512" cy="520" r="210" fill="rgba(255,255,255,0.2)" />
+  <rect x="380" y="420" width="260" height="220" rx="28" fill="#f7fff7" />
+  <text x="512" y="220" font-size="112" font-family="Arial, sans-serif" font-weight="700" fill="#ffffff" text-anchor="middle">LEFT</text>
+
+  <circle cx="1536" cy="520" r="210" fill="rgba(255,255,255,0.2)" />
+  <rect x="1404" y="420" width="260" height="220" rx="28" fill="#f7fff7" />
+  <text x="1536" y="220" font-size="112" font-family="Arial, sans-serif" font-weight="700" fill="#ffcf99" text-anchor="middle">RIGHT</text>
+</svg>

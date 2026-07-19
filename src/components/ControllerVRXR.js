@@ -17,6 +17,10 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
 
   const raycaster = new THREE.Raycaster()
   const tempMatrix = new THREE.Matrix4()
+  const tempSourcePosition = new THREE.Vector3()
+  const tempControllerPosition = new THREE.Vector3()
+  const tempIndexTipPosition = new THREE.Vector3()
+  const tempWristPosition = new THREE.Vector3()
 
   function getRaycastHits(controller) {
     tempMatrix.identity().extractRotation(controller.matrixWorld)
@@ -27,8 +31,8 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
 
   function grabObject(i, mesh, source) {
     grabbedObjects[i] = mesh
-    const sourcePosition = new THREE.Vector3().setFromMatrixPosition(source.matrixWorld)
-    grabbedOffsets[i] = mesh.position.clone().sub(sourcePosition)
+    tempSourcePosition.setFromMatrixPosition(source.matrixWorld)
+    grabbedOffsets[i] = mesh.position.clone().sub(tempSourcePosition)
   }
 
   function releaseObject(i) {
@@ -43,8 +47,7 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
     const hits = getRaycastHits(xrControllers[i])
     if (hits.length > 0) {
       const hit = hits[0]
-      if (hit.object.userData?.xrUI?.onSelect) {
-        hit.object.userData.xrUI.onSelect(hit, i)
+      if (invokeXRUIHandler(hit, 'onSelect', i)) {
         return
       }
       grabObject(i, hit.object, xrControllers[i])
@@ -61,8 +64,8 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
     const wrist = hand.joints?.wrist
     if (wrist) {
       raycaster.ray.direction
-        .setFromMatrixPosition(indexTip.matrixWorld)
-        .sub(new THREE.Vector3().setFromMatrixPosition(wrist.matrixWorld))
+        .copy(tempIndexTipPosition.setFromMatrixPosition(indexTip.matrixWorld))
+        .sub(tempWristPosition.setFromMatrixPosition(wrist.matrixWorld))
         .normalize()
     } else {
       raycaster.ray.direction.set(0, 0, -1)
@@ -71,12 +74,25 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
     const hits = raycaster.intersectObjects(getInteractableMeshes())
     if (hits.length > 0) {
       const hit = hits[0]
-      if (hit.object.userData?.xrUI?.onSelect) {
-        hit.object.userData.xrUI.onSelect(hit, i)
+      if (invokeXRUIHandler(hit, 'onSelect', i)) {
         return
       }
       grabObject(i, hit.object, indexTip)
     }
+  }
+
+  function invokeXRUIHandler(hit, handlerName, i) {
+    const handler = hit.object.userData?.xrUI?.[handlerName]
+    if (!handler) return false
+    handler(hit, i)
+    return true
+  }
+
+  function clearHoveredXRUIObject(i) {
+    if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
+      hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+    }
+    hoveredXRUIObjects[i] = null
   }
 
   function setup() {
@@ -155,12 +171,9 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
       const controller = xrControllers[i]
 
       if (grabbedObjects[i]) {
-        const controllerPosition = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld)
-        grabbedObjects[i].position.copy(controllerPosition).add(grabbedOffsets[i])
-        if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
-          hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
-          hoveredXRUIObjects[i] = null
-        }
+        tempControllerPosition.setFromMatrixPosition(controller.matrixWorld)
+        grabbedObjects[i].position.copy(tempControllerPosition).add(grabbedOffsets[i])
+        clearHoveredXRUIObject(i)
         continue
       }
 
@@ -170,15 +183,13 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
       if (hits.length > 0) {
         const hit = hits[0]
         xrRays[i].scale.z = hit.distance
-        if (hit.object.userData?.xrUI?.onHover) {
-          hit.object.userData.xrUI.onHover(hit, i)
-          if (hoveredXRUIObjects[i] && hoveredXRUIObjects[i] !== hit.object && hoveredXRUIObjects[i].userData?.xrUI?.onHoverEnd) {
-            hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+        if (invokeXRUIHandler(hit, 'onHover', i)) {
+          if (hoveredXRUIObjects[i] && hoveredXRUIObjects[i] !== hit.object) {
+            clearHoveredXRUIObject(i)
           }
           hoveredXRUIObjects[i] = hit.object
-        } else if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
-          hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
-          hoveredXRUIObjects[i] = null
+        } else {
+          clearHoveredXRUIObject(i)
         }
 
         if (hit.object.material.emissive) {
@@ -187,10 +198,7 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
         }
       } else {
         xrRays[i].scale.z = 6
-        if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
-          hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
-          hoveredXRUIObjects[i] = null
-        }
+        clearHoveredXRUIObject(i)
       }
     }
   }
@@ -232,10 +240,7 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
         ray.material.dispose()
       }
 
-      if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
-        hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
-      }
-      hoveredXRUIObjects[i] = null
+      clearHoveredXRUIObject(i)
     }
   }
 

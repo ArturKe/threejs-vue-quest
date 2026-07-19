@@ -8,6 +8,7 @@ A high-performance interactive 3D scene viewer built with Three.js and Vue 3, de
 - Interactive 3D objects (cube, sphere, torus)
 - Shadow rendering and dynamic lighting
 - Optimized WebGL renderer settings
+- Stereo side-by-side image viewer for WebXR
 
 🎨 **Vue 3 Architecture**
 - Composition API for clean component logic
@@ -36,6 +37,9 @@ src/
 ├── stores/
 │   └── sceneStore.js        # Pinia state management
 └── App.vue                  # Root component
+public/
+└── content/
+   └── example-stereo.svg    # Example SBS stereo texture
 ```
 
 ## Installation
@@ -83,6 +87,7 @@ npm run build
 - **Play/Pause** - Start/stop object rotation
 - **Reset** - Reload scene
 - **Fullscreen** - Enter fullscreen mode
+- **VR Panel Flip Stereo Eyes** - Swap left/right eye texture halves in headset
 
 ## Browser Support
 

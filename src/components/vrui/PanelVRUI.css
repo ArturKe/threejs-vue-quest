@@ -1,0 +1,125 @@
+.vrui-offscreen-host {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  width: 1024px;
+  height: 1024px;
+  opacity: 1;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: -1;
+}
+
+.vrui-canvas {
+  width: 1024px;
+  height: 1024px;
+  display: block;
+}
+
+.vrui-draw-element {
+  width: 1024px;
+  height: 1024px;
+  position: relative;
+  box-sizing: border-box;
+  background: rgba(12, 18, 36, 0.96);
+  border: 6px solid rgba(255, 255, 255, 0.2);
+  font-family: Arial, sans-serif;
+  color: #ffffff;
+  text-align: center;
+}
+
+.vrui-title {
+  margin: 80px 0 0 0;
+  font-size: 68px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.vrui-fps {
+  margin: 100px 0 0 0;
+  font-size: 84px;
+  font-weight: 700;
+  font-family: "Courier New", monospace;
+  color: #ff4000;
+  line-height: 1;
+}
+
+.vrui-button {
+  position: absolute;
+  width: 784px;
+  height: 130px;
+  border: 4px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50px;
+  background: #4ecdc4;
+  color: #0f1720;
+  font-size: 46px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vrui-button.vrui-hovered {
+  background: #7be9c7;
+}
+
+.vrui-button-toggle {
+  left: 120px;
+  top: 450px;
+}
+
+.vrui-button-reset {
+  left: 120px;
+  top: 610px;
+}
+
+.vrui-checkbox-row {
+  position: absolute;
+  left: 120px;
+  top: 770px;
+  width: 784px;
+  height: 130px;
+  border: 4px solid rgba(255, 255, 255, 0.4);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  box-sizing: border-box;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.vrui-checkbox-row.vrui-hovered {
+  background: rgba(123, 233, 199, 0.2);
+}
+
+.vrui-checkbox-label {
+  font-size: 42px;
+  font-weight: 700;
+}
+
+.vrui-checkbox {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  border: 4px solid rgba(255, 255, 255, 0.75);
+  background: rgba(10, 14, 39, 0.9);
+  position: relative;
+}
+
+.vrui-checkbox.vrui-checked {
+  background: #00ff88;
+  border-color: #00ff88;
+}
+
+.vrui-checkbox.vrui-checked::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 34px;
+  border-right: 6px solid #0f1720;
+  border-bottom: 6px solid #0f1720;
+  transform: rotate(40deg);
+  left: 20px;
+  top: 8px;
+}

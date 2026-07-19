@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div ref="containerRef" class="scene-container" />
 </template>
 
@@ -10,17 +10,39 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { useSceneStore } from '../stores/sceneStore'
 import { applySkyUniforms, setupEnvironment } from './EnvironmentSetup'
 import { createControllerVRXR } from './ControllerVRXR'
-import { createPanelVRUI } from './PanelVRUI'
+import { createPanelVRUI } from './vrui/PanelVRUI'
+import { createStereoImageViewer } from './StereoImageViewer'
 
 const containerRef = ref(null)
 const sceneStore = useSceneStore()
 
-let scene, camera, renderer, orbitControls, skyMesh, vrButton, controllerVRXR, panelVRUI
+let scene, camera, renderer, orbitControls, skyMesh, vrButton, controllerVRXR, panelVRUI, stereoImageViewer
 let objects = []
 let objectMeshes = []  // cached flat array – avoids per-frame .map() in hot path
 let interactableMeshes = []
 let fpsSampleFrameCount = 0
 let fpsSampleStartTime = 0
+
+const SCENE_OBJECT_DEFINITIONS = [
+  {
+    createGeometry: () => new THREE.BoxGeometry(2, 2, 2),
+    material: { color: 0xff6b6b, metalness: 0.5, roughness: 0.5 },
+    position: [-5, 2, 0],
+    rotation: { x: 0.01, y: 0.01, z: 0 }
+  },
+  {
+    createGeometry: () => new THREE.IcosahedronGeometry(1.5, 32),
+    material: { color: 0x4ecdc4, metalness: 0.7, roughness: 0.2 },
+    position: [5, 2, 0],
+    rotation: { x: 0.005, y: 0.02, z: 0.01 }
+  },
+  {
+    createGeometry: () => new THREE.TorusGeometry(2, 0.8, 64, 100),
+    material: { color: 0xffd93d, metalness: 0.3, roughness: 0.7 },
+    position: [0, 2, -8],
+    rotation: { x: 0.01, y: 0.008, z: 0 }
+  }
+]
 
 onMounted(() => {
   initScene()
@@ -28,12 +50,33 @@ onMounted(() => {
   skyMesh = environment.skyMesh
   createGrid()
   createObjects()
-  panelVRUI = createPanelVRUI({
-    sceneStore,
-    onResetObjects: resetObjects
+
+  stereoImageViewer = createStereoImageViewer({
+    scene,
+    renderer,
+    textureUrl: '/content/example-stereo.png',
+    position: new THREE.Vector3(-1.2, 1.6, -1.3),
+    panelWidth: 1,
+    panelHeight: 1
   })
-  scene.add(panelVRUI.mesh)
-  interactableMeshes = [...objectMeshes, panelVRUI.mesh]
+
+  // PanelVRUI requires Quest-specific html-in-canvas APIs; guard so the
+  // scene still renders on desktop when those APIs are unavailable.
+  try {
+    panelVRUI = createPanelVRUI({
+      sceneStore,
+      onResetObjects: resetObjects,
+      getStereoFlipState: () => stereoImageViewer?.getFlipped() ?? false,
+      onToggleStereoFlip: () => {
+        const nextFlipState = !(stereoImageViewer?.getFlipped() ?? false)
+        stereoImageViewer?.setFlipped(nextFlipState)
+      }
+    })
+    scene.add(panelVRUI.mesh)
+    interactableMeshes = [...objectMeshes, panelVRUI.mesh]
+  } catch {
+    interactableMeshes = [...objectMeshes]
+  }
 
   controllerVRXR = createControllerVRXR(renderer, scene, () => interactableMeshes)
   controllerVRXR.setup()
@@ -47,6 +90,7 @@ onUnmounted(() => {
   if (panelVRUI?.mesh) {
     scene.remove(panelVRUI.mesh)
   }
+  stereoImageViewer?.dispose()
   panelVRUI?.dispose()
   if (renderer && renderer.domElement.parentNode === containerRef.value) {
     containerRef.value.removeChild(renderer.domElement)
@@ -112,71 +156,28 @@ function createGrid() {
 }
 
 function createObjects() {
-  const cubeGeometry = new THREE.BoxGeometry(2, 2, 2)
-  const cubeMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff6b6b,
-    metalness: 0.5,
-    roughness: 0.5
-  })
-  const cube = new THREE.Mesh(cubeGeometry, cubeMaterial)
-  cube.castShadow = true
-  cube.receiveShadow = true
-  cube.position.set(-5, 2, 0)
-  scene.add(cube)
-  objects.push({
-    mesh: cube,
-    rotation: { x: 0.01, y: 0.01, z: 0 },
-    initialState: {
-      position: cube.position.clone(),
-      rotation: cube.rotation.clone()
-    }
-  })
-
-  // Create a sphere
-  const sphereGeometry = new THREE.IcosahedronGeometry(1.5, 32)
-  const sphereMaterial = new THREE.MeshStandardMaterial({
-    color: 0x4ecdc4,
-    metalness: 0.7,
-    roughness: 0.2
-  })
-  const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial)
-  sphere.castShadow = true
-  sphere.receiveShadow = true
-  sphere.position.set(5, 2, 0)
-  scene.add(sphere)
-  objects.push({
-    mesh: sphere,
-    rotation: { x: 0.005, y: 0.02, z: 0.01 },
-    initialState: {
-      position: sphere.position.clone(),
-      rotation: sphere.rotation.clone()
-    }
-  })
-
-  // Create a torus
-  const torusGeometry = new THREE.TorusGeometry(2, 0.8, 64, 100)
-  const torusMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffd93d,
-    metalness: 0.3,
-    roughness: 0.7
-  })
-  const torus = new THREE.Mesh(torusGeometry, torusMaterial)
-  torus.castShadow = true
-  torus.receiveShadow = true
-  torus.position.set(0, 2, -8)
-  scene.add(torus)
-  objects.push({
-    mesh: torus,
-    rotation: { x: 0.01, y: 0.008, z: 0 },
-    initialState: {
-      position: torus.position.clone(),
-      rotation: torus.rotation.clone()
+  objects = SCENE_OBJECT_DEFINITIONS.map((def) => {
+    const mesh = new THREE.Mesh(
+      def.createGeometry(),
+      new THREE.MeshStandardMaterial(def.material)
+    )
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    mesh.position.set(...def.position)
+    scene.add(mesh)
+    return {
+      mesh,
+      rotation: def.rotation,
+      initialState: {
+        position: mesh.position.clone(),
+        rotation: mesh.rotation.clone()
+      }
     }
   })
 
   sceneStore.setObjectCount(objects.length)
   objectMeshes = objects.map(o => o.mesh)
-  interactableMeshes = [...objectMeshes, ...(panelVRUI?.mesh ? [panelVRUI.mesh] : [])]
+  interactableMeshes = [...objectMeshes]
 }
 
 function resetObjects() {

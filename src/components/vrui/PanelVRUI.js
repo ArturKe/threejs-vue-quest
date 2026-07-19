@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+﻿import * as THREE from 'three'
 import { getHtmlRenderer, installHtmlInCanvasPolyfill } from 'three-html-render/polyfill'
 import panelVRUIHtml from './PanelVRUI.html?raw'
 import './PanelVRUI.css'
@@ -9,9 +9,11 @@ const PANEL_HEIGHT_METERS = 1
 let polyfillInstalled = false
 
 const BUTTON_RECTS = {
-  toggle: { x: 120, y: 520, width: 784, height: 140 },
-  reset: { x: 120, y: 710, width: 784, height: 140 }
+  toggle: { x: 120, y: 450, width: 784, height: 130 },
+  reset: { x: 120, y: 610, width: 784, height: 130 },
+  flip: { x: 120, y: 770, width: 784, height: 130 }
 }
+const BUTTON_IDS = ['toggle', 'reset', 'flip']
 
 function isInsideRect(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
@@ -40,7 +42,7 @@ function ensureHtmlInCanvasAPIs() {
   polyfillInstalled = true
 }
 
-export function createPanelVRUI({ sceneStore, onResetObjects }) {
+export function createPanelVRUI({ sceneStore, onResetObjects, getStereoFlipState, onToggleStereoFlip }) {
   ensureHtmlInCanvasAPIs()
   const host = createOffscreenHost()
 
@@ -58,7 +60,9 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
   const fpsText = drawElement.querySelector('[data-vrui-fps]')
   const toggleButton = drawElement.querySelector('[data-vrui-toggle]')
   const resetButton = drawElement.querySelector('[data-vrui-reset]')
-  if (!fpsText || !toggleButton || !resetButton) {
+  const flipRowButton = drawElement.querySelector('[data-vrui-flip-row]')
+  const flipCheckbox = drawElement.querySelector('[data-vrui-flip-box]')
+  if (!fpsText || !toggleButton || !resetButton || !flipRowButton || !flipCheckbox) {
     throw new Error('PanelVRUI template is missing required elements')
   }
 
@@ -70,6 +74,13 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
   if (typeof canvas.requestPaint !== 'function' || typeof ctx.drawElementImage !== 'function') {
     host.remove()
     throw new Error('PanelVRUI requires html-in-canvas APIs (requestPaint/drawElementImage)')
+  }
+
+  // buttonElements must be declared before any function that references it
+  const buttonElements = {
+    toggle: toggleButton,
+    reset: resetButton,
+    flip: flipRowButton
   }
 
   const texture = new THREE.CanvasTexture(canvas)
@@ -95,13 +106,7 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
   let renderInFlight = false
 
   function setButtonHoverState(buttonId, isHovered) {
-    if (buttonId === 'toggle') {
-      toggleButton.classList.toggle('vrui-hovered', isHovered)
-      return
-    }
-    if (buttonId === 'reset') {
-      resetButton.classList.toggle('vrui-hovered', isHovered)
-    }
+    buttonElements[buttonId]?.classList.toggle('vrui-hovered', isHovered)
   }
 
   function updateToggleButtonLabel() {
@@ -125,8 +130,10 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
   function requestPanelPaint() {
     fpsText.textContent = `${state.fps} FPS`
     updateToggleButtonLabel()
-    setButtonHoverState('toggle', state.hoveredButtonId === 'toggle')
-    setButtonHoverState('reset', state.hoveredButtonId === 'reset')
+    flipCheckbox.classList.toggle('vrui-checked', !!getStereoFlipState?.())
+    BUTTON_IDS.forEach((buttonId) => {
+      setButtonHoverState(buttonId, state.hoveredButtonId === buttonId)
+    })
 
     needsRender = true
   }
@@ -147,8 +154,9 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
     if (!uv) return null
     const x = uv.x * CANVAS_SIZE
     const y = (1 - uv.y) * CANVAS_SIZE
-    if (isInsideRect(x, y, BUTTON_RECTS.toggle)) return 'toggle'
-    if (isInsideRect(x, y, BUTTON_RECTS.reset)) return 'reset'
+    for (const buttonId of BUTTON_IDS) {
+      if (isInsideRect(x, y, BUTTON_RECTS[buttonId])) return buttonId
+    }
     return null
   }
 
@@ -162,18 +170,18 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
     requestPanelPaint()
   }
 
+  function onFlipEyesClick() {
+    onToggleStereoFlip?.()
+    requestPanelPaint()
+  }
+
   toggleButton.addEventListener('click', onToggleClick)
   resetButton.addEventListener('click', onResetClick)
+  flipRowButton.addEventListener('click', onFlipEyesClick)
 
   function onSelect(intersection) {
     const buttonId = buttonIdFromUV(intersection?.uv)
-    if (buttonId === 'toggle') {
-      toggleButton.click()
-      return
-    }
-    if (buttonId === 'reset') {
-      resetButton.click()
-    }
+    buttonElements[buttonId]?.click()
   }
 
   function onHover(intersection) {
@@ -206,6 +214,7 @@ export function createPanelVRUI({ sceneStore, onResetObjects }) {
   function dispose() {
     toggleButton.removeEventListener('click', onToggleClick)
     resetButton.removeEventListener('click', onResetClick)
+    flipRowButton.removeEventListener('click', onFlipEyesClick)
     canvas.onpaint = null
     geometry.dispose()
     material.dispose()
