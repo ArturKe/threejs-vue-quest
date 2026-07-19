@@ -10,13 +10,17 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { useSceneStore } from '../stores/sceneStore'
 import { applySkyUniforms, setupEnvironment } from './EnvironmentSetup'
 import { createControllerVRXR } from './ControllerVRXR'
+import { createPanelVRUI } from './PanelVRUI'
 
 const containerRef = ref(null)
 const sceneStore = useSceneStore()
 
-let scene, camera, renderer, orbitControls, skyMesh, vrButton, controllerVRXR
+let scene, camera, renderer, orbitControls, skyMesh, vrButton, controllerVRXR, panelVRUI
 let objects = []
 let objectMeshes = []  // cached flat array – avoids per-frame .map() in hot path
+let interactableMeshes = []
+let fpsSampleFrameCount = 0
+let fpsSampleStartTime = 0
 
 onMounted(() => {
   initScene()
@@ -24,7 +28,14 @@ onMounted(() => {
   skyMesh = environment.skyMesh
   createGrid()
   createObjects()
-  controllerVRXR = createControllerVRXR(renderer, scene, () => objectMeshes)
+  panelVRUI = createPanelVRUI({
+    sceneStore,
+    onResetObjects: resetObjects
+  })
+  scene.add(panelVRUI.mesh)
+  interactableMeshes = [...objectMeshes, panelVRUI.mesh]
+
+  controllerVRXR = createControllerVRXR(renderer, scene, () => interactableMeshes)
   controllerVRXR.setup()
   handleResize()
 })
@@ -33,6 +44,10 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   renderer?.setAnimationLoop(null)
   controllerVRXR?.dispose()
+  if (panelVRUI?.mesh) {
+    scene.remove(panelVRUI.mesh)
+  }
+  panelVRUI?.dispose()
   if (renderer && renderer.domElement.parentNode === containerRef.value) {
     containerRef.value.removeChild(renderer.domElement)
   }
@@ -85,6 +100,7 @@ function initScene() {
   renderer.xr.addEventListener('sessionstart', () => { orbitControls.enabled = false })
   renderer.xr.addEventListener('sessionend', () => { orbitControls.enabled = true })
 
+  fpsSampleStartTime = performance.now()
   renderer.setAnimationLoop(animate)
   window.addEventListener('resize', handleResize)
 }
@@ -107,7 +123,14 @@ function createObjects() {
   cube.receiveShadow = true
   cube.position.set(-5, 2, 0)
   scene.add(cube)
-  objects.push({ mesh: cube, rotation: { x: 0.01, y: 0.01, z: 0 } })
+  objects.push({
+    mesh: cube,
+    rotation: { x: 0.01, y: 0.01, z: 0 },
+    initialState: {
+      position: cube.position.clone(),
+      rotation: cube.rotation.clone()
+    }
+  })
 
   // Create a sphere
   const sphereGeometry = new THREE.IcosahedronGeometry(1.5, 32)
@@ -121,7 +144,14 @@ function createObjects() {
   sphere.receiveShadow = true
   sphere.position.set(5, 2, 0)
   scene.add(sphere)
-  objects.push({ mesh: sphere, rotation: { x: 0.005, y: 0.02, z: 0.01 } })
+  objects.push({
+    mesh: sphere,
+    rotation: { x: 0.005, y: 0.02, z: 0.01 },
+    initialState: {
+      position: sphere.position.clone(),
+      rotation: sphere.rotation.clone()
+    }
+  })
 
   // Create a torus
   const torusGeometry = new THREE.TorusGeometry(2, 0.8, 64, 100)
@@ -135,15 +165,40 @@ function createObjects() {
   torus.receiveShadow = true
   torus.position.set(0, 2, -8)
   scene.add(torus)
-  objects.push({ mesh: torus, rotation: { x: 0.01, y: 0.008, z: 0 } })
+  objects.push({
+    mesh: torus,
+    rotation: { x: 0.01, y: 0.008, z: 0 },
+    initialState: {
+      position: torus.position.clone(),
+      rotation: torus.rotation.clone()
+    }
+  })
 
   sceneStore.setObjectCount(objects.length)
   objectMeshes = objects.map(o => o.mesh)
+  interactableMeshes = [...objectMeshes, ...(panelVRUI?.mesh ? [panelVRUI.mesh] : [])]
+}
+
+function resetObjects() {
+  objects.forEach(({ mesh, initialState }) => {
+    mesh.position.copy(initialState.position)
+    mesh.rotation.copy(initialState.rotation)
+  })
 }
 
 function animate() {
   orbitControls.update()
   controllerVRXR?.update()
+  panelVRUI?.update()
+
+  fpsSampleFrameCount += 1
+  const now = performance.now()
+  if (now - fpsSampleStartTime >= 500) {
+    const fps = Math.round((fpsSampleFrameCount * 1000) / (now - fpsSampleStartTime))
+    panelVRUI?.setFPS(fps)
+    fpsSampleFrameCount = 0
+    fpsSampleStartTime = now
+  }
 
   if (sceneStore.isAnimating) {
     objects.forEach(({ mesh, rotation }) => {

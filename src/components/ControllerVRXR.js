@@ -11,6 +11,7 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
   const grabbedOffsets = [null, null]
   const controllerListeners = []
   const handListeners = []
+  const hoveredXRUIObjects = [null, null]
 
   let highlightedMesh = null
 
@@ -41,7 +42,12 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
   function onSelectStart(i) {
     const hits = getRaycastHits(xrControllers[i])
     if (hits.length > 0) {
-      grabObject(i, hits[0].object, xrControllers[i])
+      const hit = hits[0]
+      if (hit.object.userData?.xrUI?.onSelect) {
+        hit.object.userData.xrUI.onSelect(hit, i)
+        return
+      }
+      grabObject(i, hit.object, xrControllers[i])
     }
   }
 
@@ -64,7 +70,12 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
 
     const hits = raycaster.intersectObjects(getInteractableMeshes())
     if (hits.length > 0) {
-      grabObject(i, hits[0].object, indexTip)
+      const hit = hits[0]
+      if (hit.object.userData?.xrUI?.onSelect) {
+        hit.object.userData.xrUI.onSelect(hit, i)
+        return
+      }
+      grabObject(i, hit.object, indexTip)
     }
   }
 
@@ -146,6 +157,10 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
       if (grabbedObjects[i]) {
         const controllerPosition = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld)
         grabbedObjects[i].position.copy(controllerPosition).add(grabbedOffsets[i])
+        if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
+          hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+          hoveredXRUIObjects[i] = null
+        }
         continue
       }
 
@@ -155,12 +170,27 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
       if (hits.length > 0) {
         const hit = hits[0]
         xrRays[i].scale.z = hit.distance
+        if (hit.object.userData?.xrUI?.onHover) {
+          hit.object.userData.xrUI.onHover(hit, i)
+          if (hoveredXRUIObjects[i] && hoveredXRUIObjects[i] !== hit.object && hoveredXRUIObjects[i].userData?.xrUI?.onHoverEnd) {
+            hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+          }
+          hoveredXRUIObjects[i] = hit.object
+        } else if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
+          hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+          hoveredXRUIObjects[i] = null
+        }
+
         if (hit.object.material.emissive) {
           hit.object.material.emissive.set(0.25, 0.25, 0.05)
           highlightedMesh = hit.object
         }
       } else {
         xrRays[i].scale.z = 6
+        if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
+          hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+          hoveredXRUIObjects[i] = null
+        }
       }
     }
   }
@@ -201,6 +231,11 @@ export function createControllerVRXR(renderer, scene, getInteractableMeshes) {
         ray.geometry.dispose()
         ray.material.dispose()
       }
+
+      if (hoveredXRUIObjects[i]?.userData?.xrUI?.onHoverEnd) {
+        hoveredXRUIObjects[i].userData.xrUI.onHoverEnd(i)
+      }
+      hoveredXRUIObjects[i] = null
     }
   }
 

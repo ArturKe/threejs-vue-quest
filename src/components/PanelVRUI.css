@@ -1,0 +1,72 @@
+.vrui-offscreen-host {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  width: 1024px;
+  height: 1024px;
+  opacity: 1;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: -1;
+}
+
+.vrui-canvas {
+  width: 1024px;
+  height: 1024px;
+  display: block;
+}
+
+.vrui-draw-element {
+  width: 1024px;
+  height: 1024px;
+  position: relative;
+  box-sizing: border-box;
+  background: rgba(12, 18, 36, 0.96);
+  border: 6px solid rgba(255, 255, 255, 0.2);
+  font-family: Arial, sans-serif;
+  color: #ffffff;
+  text-align: center;
+}
+
+.vrui-title {
+  margin: 80px 0 0 0;
+  font-size: 68px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.vrui-fps {
+  margin: 120px 0 0 0;
+  font-size: 84px;
+  font-weight: 700;
+  font-family: "Courier New", monospace;
+  color: #ff4000;
+  line-height: 1;
+}
+
+.vrui-button {
+  position: absolute;
+  width: 784px;
+  height: 140px;
+  border: 4px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50px;
+  background: #4ecdc4;
+  color: #0f1720;
+  font-size: 50px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vrui-button.vrui-hovered {
+  background: #7be9c7;
+}
+
+.vrui-button-toggle {
+  left: 120px;
+  top: 520px;
+}
+
+.vrui-button-reset {
+  left: 120px;
+  top: 710px;
+}
