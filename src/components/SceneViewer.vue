@@ -9,19 +9,20 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { useSceneStore } from '../stores/sceneStore'
 import { applySkyUniforms, setupEnvironment } from './EnvironmentSetup'
-import { createControllerVRXR } from './ControllerVRXR'
+import { createControllerVRXR } from './vrcontroller/ControllerVRXR'
 import { createPanelVRUI } from './vrui/PanelVRUI'
 import { createStereoImageViewer } from './StereoImageViewer'
 
 const containerRef = ref(null)
 const sceneStore = useSceneStore()
 
-let scene, camera, renderer, orbitControls, skyMesh, vrButton, controllerVRXR, panelVRUI, stereoImageViewer
+let scene, camera, renderer, orbitControls, skyMesh, floorMesh, vrButton, controllerVRXR, panelVRUI, stereoImageViewer, playerRig
 let objects = []
 let objectMeshes = []  // cached flat array – avoids per-frame .map() in hot path
 let interactableMeshes = []
 let fpsSampleFrameCount = 0
 let fpsSampleStartTime = 0
+const desktopCameraPosition = new THREE.Vector3(0, 8, 15)
 
 const SCENE_OBJECT_DEFINITIONS = [
   {
@@ -31,23 +32,27 @@ const SCENE_OBJECT_DEFINITIONS = [
     rotation: { x: 0.01, y: 0.01, z: 0 }
   },
   {
-    createGeometry: () => new THREE.IcosahedronGeometry(1.5, 32),
+    createGeometry: () => new THREE.IcosahedronGeometry(1, 32),
     material: { color: 0x4ecdc4, metalness: 0.7, roughness: 0.2 },
     position: [5, 2, 0],
     rotation: { x: 0.005, y: 0.02, z: 0.01 }
   },
   {
-    createGeometry: () => new THREE.TorusGeometry(2, 0.8, 64, 100),
+    createGeometry: () => new THREE.TorusGeometry(1, 0.8, 64, 100),
     material: { color: 0xffd93d, metalness: 0.3, roughness: 0.7 },
     position: [0, 2, -8],
     rotation: { x: 0.01, y: 0.008, z: 0 }
   }
 ]
 
+/**
+ * Builds the Three.js scene and wires the VR helpers on mount.
+ */
 onMounted(() => {
   initScene()
   const environment = setupEnvironment(scene, sceneStore.skyParams)
   skyMesh = environment.skyMesh
+  floorMesh = environment.floor
   createGrid()
   createObjects()
 
@@ -78,11 +83,14 @@ onMounted(() => {
     interactableMeshes = [...objectMeshes]
   }
 
-  controllerVRXR = createControllerVRXR(renderer, scene, () => interactableMeshes)
+  controllerVRXR = createControllerVRXR(renderer, scene, playerRig, floorMesh, () => interactableMeshes)
   controllerVRXR.setup()
   handleResize()
 })
 
+/**
+ * Tears down rendering resources and XR helpers on unmount.
+ */
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   renderer?.setAnimationLoop(null)
@@ -108,8 +116,13 @@ watch(() => sceneStore.skyParams, (newParams) => {
   }
 }, { deep: true })
 
+/**
+ * Creates the scene, camera, renderer, and desktop/XR controls.
+ */
 function initScene() {
   scene = new THREE.Scene()
+  playerRig = new THREE.Group()
+  scene.add(playerRig)
 
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
@@ -141,20 +154,37 @@ function initScene() {
   orbitControls.minDistance = 5
   orbitControls.maxDistance = 100
 
-  renderer.xr.addEventListener('sessionstart', () => { orbitControls.enabled = false })
-  renderer.xr.addEventListener('sessionend', () => { orbitControls.enabled = true })
+  renderer.xr.addEventListener('sessionstart', () => {
+    orbitControls.enabled = false
+    playerRig.attach(camera)
+    camera.position.set(0, 0, 0)
+    camera.rotation.set(0, 0, 0)
+  })
+  renderer.xr.addEventListener('sessionend', () => {
+    orbitControls.enabled = true
+    scene.attach(camera)
+    camera.position.copy(desktopCameraPosition)
+    camera.lookAt(0, 0, 0)
+    playerRig.position.set(0, 0, 0)
+  })
 
   fpsSampleStartTime = performance.now()
   renderer.setAnimationLoop(animate)
   window.addEventListener('resize', handleResize)
 }
 
+/**
+ * Adds the ground grid to the scene.
+ */
 function createGrid() {
   const gridHelper = new THREE.GridHelper(20, 20, 0x00ff88, 0x444444)
   gridHelper.position.y = 0.01
   scene.add(gridHelper)
 }
 
+/**
+ * Creates the sample meshes and caches their reset state.
+ */
 function createObjects() {
   objects = SCENE_OBJECT_DEFINITIONS.map((def) => {
     const mesh = new THREE.Mesh(
@@ -180,6 +210,9 @@ function createObjects() {
   interactableMeshes = [...objectMeshes]
 }
 
+/**
+ * Restores all sample meshes to their initial transforms.
+ */
 function resetObjects() {
   objects.forEach(({ mesh, initialState }) => {
     mesh.position.copy(initialState.position)
@@ -187,6 +220,9 @@ function resetObjects() {
   })
 }
 
+/**
+ * Advances controls, updates XR helpers, and renders each frame.
+ */
 function animate() {
   orbitControls.update()
   controllerVRXR?.update()
@@ -212,6 +248,9 @@ function animate() {
   renderer.render(scene, camera)
 }
 
+/**
+ * Resizes the renderer and camera to match the container.
+ */
 function handleResize() {
   const width = containerRef.value?.clientWidth || window.innerWidth
   const height = containerRef.value?.clientHeight || window.innerHeight

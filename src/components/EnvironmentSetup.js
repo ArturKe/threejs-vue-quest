@@ -49,6 +49,8 @@ function createFloorPlanes(scene) {
   floor.receiveShadow = true
   floor.position.y = 0
   scene.add(floor)
+
+  return floor
 }
 
 function createSky(scene, skyParams) {
@@ -71,8 +73,8 @@ function createSky(scene, skyParams) {
 
 export function setupEnvironment(scene, skyParams) {
   createSceneLights(scene)
-  createFloorPlanes(scene)
+  const floor = createFloorPlanes(scene)
   const skyMesh = createSky(scene, skyParams)
 
-  return { skyMesh }
+  return { skyMesh, floor }
 }
