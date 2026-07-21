@@ -2,8 +2,8 @@
   position: fixed;
   left: -10000px;
   top: -10000px;
-  width: 1024px;
-  height: 1024px;
+  width: var(--vrui-canvas-size, 1024px);
+  height: var(--vrui-canvas-size, 1024px);
   opacity: 1;
   pointer-events: none;
   overflow: hidden;
@@ -11,14 +11,14 @@
 }
 
 .vrui-canvas {
-  width: 1024px;
-  height: 1024px;
+  width: var(--vrui-canvas-size, 1024px);
+  height: var(--vrui-canvas-size, 1024px);
   display: block;
 }
 
 .vrui-draw-element {
-  width: 1024px;
-  height: 1024px;
+  width: var(--vrui-canvas-size, 1024px);
+  height: var(--vrui-canvas-size, 1024px);
   position: relative;
   box-sizing: border-box;
   background: rgba(12, 18, 36, 0.96);
@@ -46,8 +46,6 @@
 
 .vrui-button {
   position: absolute;
-  width: 784px;
-  height: 130px;
   border: 4px solid rgba(255, 255, 255, 0.45);
   border-radius: 50px;
   background: #4ecdc4;
@@ -62,21 +60,25 @@
 }
 
 .vrui-button-toggle {
-  left: 120px;
-  top: 450px;
+  left: var(--vrui-toggle-x, 120px);
+  top: var(--vrui-toggle-y, 450px);
+  width: var(--vrui-toggle-width, 784px);
+  height: var(--vrui-toggle-height, 130px);
 }
 
 .vrui-button-reset {
-  left: 120px;
-  top: 610px;
+  left: var(--vrui-reset-x, 120px);
+  top: var(--vrui-reset-y, 610px);
+  width: var(--vrui-reset-width, 784px);
+  height: var(--vrui-reset-height, 130px);
 }
 
 .vrui-checkbox-row {
   position: absolute;
-  left: 120px;
-  top: 770px;
-  width: 784px;
-  height: 130px;
+  left: var(--vrui-flip-x, 120px);
+  top: var(--vrui-flip-y, 770px);
+  width: var(--vrui-flip-width, 784px);
+  height: var(--vrui-flip-height, 130px);
   border: 4px solid rgba(255, 255, 255, 0.4);
   border-radius: 32px;
   background: rgba(255, 255, 255, 0.06);

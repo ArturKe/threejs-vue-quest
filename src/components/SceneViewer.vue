@@ -10,7 +10,7 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js'
 import { useSceneStore } from '../stores/sceneStore'
 import { applySkyUniforms, setupEnvironment } from './EnvironmentSetup'
 import { createControllerVRXR } from './vrcontroller/ControllerVRXR'
-import { createPanelVRUI } from './vrui/PanelVRUI'
+import { createPanelVRUI } from './vrui/PanelVR/PanelVRUI'
 import { createStereoImageViewer } from './StereoImageViewer'
 
 const containerRef = ref(null)
